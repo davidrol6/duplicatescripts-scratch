@@ -4,6 +4,18 @@ from os import listdir
 from os.path import isfile, join
 import sys
 import os
+import zipfile
+
+def get_function_blocks(start, block_dict):
+    list_blocks = []
+    begin = block_dict[block_dict[start]["next"]]
+    while begin != None:
+        list_blocks.append(begin["opcode"])
+        if begin["next"] != None:
+            begin = block_dict[begin["next"]]
+        else:
+            begin = None
+    return list_blocks
 
 mypath = "./projects_sb3/"
 new_path = "./sb3/"
@@ -11,12 +23,16 @@ onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
 print("TEST FILES", onlyfiles[0])
 
 db = pymongo.MongoClient(host="f-l2108-pc01.aulas.etsit.urjc.es", port=21000)
-db = db["ct"]
+#db = pymongo.MongoClient(host="localhost", port=27017)
+db = db["ct_blocks"]
 col_custom = db["customblocks"]
 
 #filename = "490319019.json"
 for filename in onlyfiles:
     try:
+        #zip_file = zipfile.ZipFile(filename, "r")
+        #json_project = json.loads(zip_file.open("project.json").read())
+        #print(json.dumps(json_project, indent=4, sort_keys=True))
         json_project = json.loads(open(mypath + filename, encoding="utf-8").read())
         list_customblocks_sprite = []
         list_calls = []
@@ -32,18 +48,22 @@ for filename in onlyfiles:
                     list_calls = []
                     is_stage = e["isStage"]
                     for key in e[k]:
+                        print(e[k][key])
                         try:
                             if e[k][key]["opcode"] == "procedures_prototype":
+                                parent = e[k][key]["parent"]
+                                list_function_blocks = get_function_blocks(parent, e[k])
+                                print(e[k][key])
                                 data[name].append({"type": "procedures_prototype", "name": e[k][key]["mutation"]["proccode"],
                                         "argument_names":e[k][key]["mutation"]["argumentnames"],
                                         "argument_ids": e[k][key]["mutation"]["argumentids"],
+                                        "blocks": list_function_blocks,
                                         "n_calls": 0})
                                 count_definitions += 1
                             elif e[k][key]["opcode"] == "procedures_call":
                                 list_calls.append({"type": "procedures_call", "name": e[k][key]["mutation"]["proccode"],
                                                    "argument_ids":e[k][key]["mutation"]["argumentids"]})
                                 count_calls += 1
-                                print(name)
 
 
                         except Exception as e:
